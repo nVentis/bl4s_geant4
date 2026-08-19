@@ -1,0 +1,42 @@
+<lccdd>
+
+  <!-- Beam is assumed to enter at the world origin travelling in +z;
+       the bar's upstream face sits at z=0 and the SiPM face touches
+       the bar's downstream face at z=50cm.
+
+       Check DD4hep/DDDetectors/src/BoxSegment_geo.cpp for a documen-
+       tation of DD4hep_BoxSegment. Dimensions are provided by `box`
+       via half-lengths along each dimension (z=25cm -> 25cm in both
+       directions along the z axis from the reference point specified
+       in `position`)
+    -->
+  <detectors>
+    <detector id="1" name="LeadGlassBar" type="DD4hep_BoxSegment"
+              readout="LeadGlassBarHits" vis="BlueVis"
+              sensitive="true" limits="GlassBarLimits">
+      <material name="LeadGlass"/>
+      <sensitive type="tracker"/>
+      <box      x="0.5*cm"  y="0.5*cm"  z="25.0*cm"/>
+      <position x="0"       y="0"       z="25.0*cm"/>
+    </detector>
+
+    <detector id="2" name="SiPM" type="DD4hep_BoxSegment"
+              readout="SiPMHits" vis="GreenVis"
+              sensitive="true">
+      <material name="Silicon"/>
+      <sensitive type="tracker"/>
+      <box      x="4.75*cm" y="4.75*cm" z="0.1*cm"/>
+      <position x="0"       y="0"       z="50.1*cm"/>
+    </detector>
+  </detectors>
+
+  <readouts>
+    <readout name="LeadGlassBarHits">
+      <id>system:8</id>
+    </readout>
+    <readout name="SiPMHits">
+      <id>system:8</id>
+    </readout>
+  </readouts>
+
+</lccdd>

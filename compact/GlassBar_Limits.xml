@@ -1,0 +1,11 @@
+<limits>
+  <limitset name="GlassBarLimits">
+    <!--
+    1mm max step: fine sampling within glass bar 
+    500 steps inside 50cm. may be changed
+    -> up (if performance is a problem) or
+    -> down (if higher granularity is desired)
+    -->
+    <limit name="step_length_max" particles="*" value="1.0" unit="mm" />
+  </limitset>
+</limits>
