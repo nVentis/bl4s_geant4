@@ -43,7 +43,7 @@ jobs:
       - name: Run baseline simulation (bare-glass default, --storePhotonSteps off)
         run: |
           docker run --rm --privileged geant4_bl4s:ci bash -c '
-            set -euo pipefail
+            set -eo pipefail
             source setup.sh
             ddsim --steeringFile steering.py -N 1 --outputFile /tmp/test_baseline.root
             test -s /tmp/test_baseline.root
@@ -53,7 +53,7 @@ jobs:
       - name: Run --storePhotonSteps simulation (custom EveryStepTrackerAction plugin)
         run: |
           docker run --rm --privileged geant4_bl4s:ci bash -c '
-            set -euo pipefail
+            set -eo pipefail
             source setup.sh
             ddsim --steeringFile steering.py -N 1 --storePhotonSteps --outputFile /tmp/test_steps.root
             test -s /tmp/test_steps.root
