@@ -1,0 +1,6 @@
+.git
+DD4hep
+__pycache__
+*.root
+plugins/build
+*.ipynb

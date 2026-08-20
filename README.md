@@ -14,6 +14,8 @@ Now you have access to the `ddsim` command which we use for detector simulation,
 
 To make some additional plugins available, `cd plugins && mkdir build && cd build && cmake .. && make install`
 
+If you're running on Windows, the easiest way is to install Docker Desktop and startup a privileged container running a [key4hep-cvmfs image](https://github.com/key4hep/key4hep-images). You can also use the provided `Dockerfile` for this purpose.
+
 # Model and Geometry
 
 The geometry is defined in `compact/GlassBar.xml`, the other XML files in the same directory as well as `compact/GlassBar/GlassBar_Cherenkov.xml`.

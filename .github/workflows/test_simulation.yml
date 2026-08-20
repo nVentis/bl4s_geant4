@@ -1,0 +1,61 @@
+# Based on https://github.com/ILDAnaSoft/ZHH/blob/main/.github/workflows/create_image.yml
+name: Test simulation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, reopened, synchronize]
+  workflow_dispatch:
+
+jobs:
+  test-simulation:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          # required for the privileged CVMFS mount in the Dockerfile's
+          # RUN --security=insecure step; see
+          # https://github.com/docker/buildx/issues/2683
+          buildkitd-flags: "--allow-insecure-entitlement security.insecure"
+
+      - name: Build image (mounts CVMFS, builds plugins/)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          load: true
+          tags: geant4_bl4s:ci
+          allow: security.insecure
+
+      # CVMFS is a FUSE filesystem: mounting it at container runtime needs
+      # elevated privileges, hence --privileged here (separate from the
+      # build-time "insecure" entitlement above).
+      - name: Run baseline simulation (bare-glass default, --storePhotonSteps off)
+        run: |
+          docker run --rm --privileged geant4_bl4s:ci bash -c '
+            set -euo pipefail
+            source setup.sh
+            ddsim --steeringFile steering.py -N 1 --outputFile /tmp/test_baseline.root
+            test -s /tmp/test_baseline.root
+            echo "Baseline simulation OK: $(stat -c%s /tmp/test_baseline.root) bytes"
+          '
+
+      - name: Run --storePhotonSteps simulation (custom EveryStepTrackerAction plugin)
+        run: |
+          docker run --rm --privileged geant4_bl4s:ci bash -c '
+            set -euo pipefail
+            source setup.sh
+            ddsim --steeringFile steering.py -N 1 --storePhotonSteps --outputFile /tmp/test_steps.root
+            test -s /tmp/test_steps.root
+            echo "storePhotonSteps simulation OK: $(stat -c%s /tmp/test_steps.root) bytes"
+          '
