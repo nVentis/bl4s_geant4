@@ -10,6 +10,15 @@
 
 <lccdd>
 
+  <info name="GlassBar"
+        title="Lead glass Cherenkov bar with SiPM readout"
+        author="B.Bliewert"
+        url="None"
+        status="development"
+        version="1.0">
+    <comment>1x1x50cm LeadGlass Cherenkov radiator read out by a SiPM, for 2-6 GeV electron beam studies</comment>
+  </info>
+
   <includes>
     <gdmlFile ref="elements.xml"/>
     <gdmlFile ref="materials.xml"/>
@@ -22,6 +31,31 @@
   <limits>
     <include ref="GlassBar_Limits.xml"/>
   </limits>
+
+  <!-- Reflective wrap for the LeadGlassBar's side walls (bound via the
+       DD4hep_BoxSegmentReflective plugin, see plugins/src). NOT used by
+       the default runtime config (GlassBar/GlassBar_Cherenkov.xml
+       currently uses plain DD4hep_BoxSegment, i.e. bare/uncoated glass,
+       to match the real detector); kept defined here so it's a one-line
+       swap to bring back for comparison runs. See README.md for the
+       measured effect: statistically the same SiPM yield either way, but
+       ~8-9x faster with this surface enabled, since it appears to let
+       Geant4 skip full per-bounce Fresnel angle calculation in favor of a
+       cheap probabilistic reflect/absorb draw. Reflectivity value below
+       is an arbitrary placeholder (not measured from a real wrap
+       material). -->
+  <properties>
+    <matrix name="LeadGlassBar_SideMirror__REFLECTIVITY" coldim="2" values="
+      1.75*eV 0.995
+      4.13*eV 0.995
+    "/>
+  </properties>
+
+  <surfaces>
+    <opticalsurface name="LeadGlassBar_SideMirror" finish="polished" model="glisur" type="dielectric_dielectric" value="1">
+      <property name="REFLECTIVITY" ref="LeadGlassBar_SideMirror__REFLECTIVITY"/>
+    </opticalsurface>
+  </surfaces>
 
   <!--
   <regions>

@@ -14,6 +14,25 @@
       1.75*eV 1.47
       4.13*eV 1.47
     "/>
+    <!-- Placeholder bulk attenuation length; replace with a real
+         manufacturer value if available. Without this, photons trapped
+         by total internal reflection at the bar's untreated side walls
+         (critical angle ~43deg for 1.47 -> 1.0) never get killed and can
+         bounce indefinitely, blowing up run time/memory. Geant4 applies
+         survival as exp(-pathLength/ABSLENGTH) continuously along the
+         track, so this bounds photon lifetime regardless of bounce count. -->
+    <matrix name="LeadGlass__ABSLENGTH" coldim="2" values="
+      1.75*eV 1000.0*cm
+      4.13*eV 1000.0*cm
+    "/>
+    <matrix name="Silicon__RINDEX" coldim="2" values="
+      1.75*eV 1.0
+      4.13*eV 1.0
+    "/>
+    <matrix name="Silicon__ABSLENGTH" coldim="2" values="
+      1.75*eV 0.001*cm
+      4.13*eV 0.001*cm
+    "/>
   </properties>
 
   <materials>
@@ -39,6 +58,7 @@
       <fraction n="0.336553" ref="Si" />
       <fraction n="0.107205" ref="Ca" />
       <property name="RINDEX" ref="LeadGlass__RINDEX"/>
+      <property name="ABSLENGTH" ref="LeadGlass__ABSLENGTH"/>
 
       <!--
        4             G4_GLASS_PLATE        2.4     145.4
@@ -70,12 +90,26 @@
       <composite n="2" ref="O"/>
     </material>
 
-    <!-- SiPM bulk material; deliberately no RINDEX for now so the
-         glass/Silicon boundary absorbs incoming photons (idealized
-         100%-efficient detection, no Fresnel losses modeled). -->
-    <material name="Silicon">
+    <!-- SiPM bulk material. Named SiPM_Silicon, NOT Silicon: elements.xml
+         already defines a plain "Silicon" material (line ~708), and since
+         it loads before materials.xml, Converter<Material> would see the
+         name already taken and silently skip our whole block (density,
+         composite, AND the RINDEX/ABSLENGTH properties below); this bit
+         us once already.
+         Needs a real RINDEX: without one, Geant4's boundary process kills
+         the photon while it's still leaving LeadGlassBar (attributing the
+         hit to LeadGlassBar's SD, not SiPM's) rather than letting it cross
+         into this volume at all. n=1.0 avoids adding extra Fresnel
+         reflection loss at the interface beyond what's already modeled;
+         ABSLENGTH is short so the photon is promptly absorbed once inside,
+         generating a hit here (idealized; real Si has n~3.5-6 with
+         wavelength-dependent absorption; revisit if you need real
+         PDE/Fresnel fidelity at the window). -->
+    <material name="SiPM_Silicon">
       <D type="density" unit="g/cm3" value="2.33"/>
       <composite n="1" ref="Si"/>
+      <property name="RINDEX" ref="Silicon__RINDEX"/>
+      <property name="ABSLENGTH" ref="Silicon__ABSLENGTH"/>
     </material>
 
     <material name="G10">

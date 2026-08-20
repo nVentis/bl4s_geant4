@@ -1,6 +1,31 @@
+# Geometry note: compact/GlassBar/GlassBar_Cherenkov.xml's LeadGlassBar
+# currently models bare, uncoated glass (plain DD4hep_BoxSegment) to match
+# the real detector, relying on default Fresnel/TIR physics rather than an
+# explicit reflective wrap. A faster (~8-9x) reflective-surface variant
+# (DD4hep_BoxSegmentReflective) exists for comparison -- statistically the
+# same SiPM yield, much shorter runtime. See README.md "Reflective vs bare
+# LeadGlassBar side walls" for how to switch and the measured numbers.
+
 from DDSim.DD4hepSimulation import DD4hepSimulation
 from g4units import mm, GeV, MeV
 SIM = DD4hepSimulation()
+
+# --storePhotonSteps: opt-in switch for a full per-step LeadGlassBarHits dump
+# (one hit per Geant4 step, for the electron AND every optical photon --
+# including every TIR bounce/refraction) instead of the default single hit
+# combined over each particle's whole passage through the bar. Needed to draw
+# true polylines instead of straight vertex->endpoint chords; off by default
+# because with O(10^4) Cherenkov photons/event potentially bouncing many
+# times before absorption, this multiplies hit count (and output size,
+# runtime) a lot -- only enable it for small, few-event debugging/
+# visualization runs. ddsim's own argument parser doesn't tolerate
+# unrecognized flags, so this is stripped out of sys.argv before ddsim gets
+# to parse it (readSteeringFile() runs before the main parser.parse_args()
+# call, so this file gets to see/edit the real argv first).
+import sys
+STORE_PHOTON_STEPS = '--storePhotonSteps' in sys.argv
+if STORE_PHOTON_STEPS:
+    sys.argv = [arg for arg in sys.argv if arg != '--storePhotonSteps']
 
 ## The compact XML file, or multiple compact files, if the last one is the closer.
 SIM.compactFile = ["compact/GlassBar.xml"]
@@ -17,7 +42,7 @@ SIM.inputFiles = []
 ## Macro file to execute for runType 'run' or 'vis'
 SIM.macroFile = ""
 ## number of events to simulate, used in batch mode
-SIM.numberOfEvents = 1000
+SIM.numberOfEvents = 10
 ## Outputfile from the simulation: .slcio, edm4hep.root and .root output files are supported
 SIM.outputFile = "glassbar_cherenkov.root"
 ## Physics list to use in simulation. Deprecated, use physics.list
@@ -117,6 +142,25 @@ SIM.action.event = []
 ## default Geant4TrackerWeightedAction used for LeadGlassBar.
 SIM.action.mapActions = {"SiPM": "Geant4OpticalTrackerAction"}
 
+if STORE_PHOTON_STEPS:
+    # Geant4TrackerWeightedAction (even with CollectSingleDeposits=True) only
+    # ever creates a hit for a step with nonzero energy deposit -- true for
+    # every electron dE/dx step, but never true for a TIR/refraction step
+    # (elastic, zero deposit), so it silently drops every photon bounce.
+    # EveryStepTrackerAction (plugins/src/EveryStepTrackerAction.cpp) instead
+    # hits unconditionally for every opticalphoton step while keeping the
+    # normal deposit-gated behaviour for everything else (the electron).
+    # MaxOpticalTracks/MaxHitsPerTrack bound memory/output size: an
+    # untreated-side-wall photon can realistically bounce hundreds of times
+    # before ABSLENGTH's statistical cutoff catches it, and recording every
+    # step of every one of O(10^4) photons/event was measured to blow up to
+    # ~4.5GB RSS in under a minute. These caps are plenty for visualizing a
+    # handful of events; raise them if more per-photon detail is needed.
+    SIM.action.mapActions["LeadGlassBar"] = (
+        "EveryStepTrackerAction",
+        {"MaxOpticalTracks": 200, "MaxHitsPerTrack": 500},
+    )
+
 ## set the default run action 
 SIM.action.run = []
 
@@ -190,11 +234,44 @@ SIM.field.stepper = "ClassicalRK4"
 ## this is applied if no other filter is used for a calorimeter
 SIM.filter.calo = "edep0"
 
-## list of filter objects: map between name and parameter dictionary 
-SIM.filter.filters = {'geantino': {'name': 'GeantinoRejectFilter/GeantinoRejector', 'parameter': {}}, 'edep1kev': {'name': 'EnergyDepositMinimumCut', 'parameter': {'Cut': 0.001}}, 'edep0': {'name': 'EnergyDepositMinimumCut/Cut0', 'parameter': {'Cut': 0.0}}}
+## list of filter objects: map between name and parameter dictionary
+SIM.filter.filters = {
+    'geantino': {
+        'name': 'GeantinoRejectFilter/GeantinoRejector',
+        'parameter': {}
+    },
+    'edep1kev': {
+        'name': 'EnergyDepositMinimumCut',
+        'parameter': {'Cut': 0.001}
+    },
+    'edep0': {
+        'name': 'EnergyDepositMinimumCut/Cut0', 
+        'parameter': {'Cut': 0.0}
+    },
+    'opticalphotons': {
+        'name': 'ParticleSelectFilter/OpticalPhotonSelector',
+        'parameter': {
+            'particle': 'opticalphoton'
+        }
+    }
+}
 
-## a map between patterns and filter objects, using patterns to attach filters to sensitive detector 
-SIM.filter.mapDetFilter = {}
+## a map between patterns and filter objects, using patterns to attach filters to sensitive detector
+## Without this, the SiPM (mapped to Geant4OpticalTrackerAction) still
+## accepts hits from ANY particle depositing energy there -- including
+## charged EM-shower secondaries punching through from the 50cm/~20 X0
+## LeadGlassBar, which swamp the actual Cherenkov photon signal with
+## MeV-scale energy deposits. Restrict it to optical photons only.
+SIM.filter.mapDetFilter = {"SiPM": ["opticalphotons", "edep0"]}
+
+if STORE_PHOTON_STEPS:
+    # edep0 (Cut=0.0) rejects exactly-zero-deposit steps -- every TIR/
+    # refraction step -- before EveryStepTrackerAction.process() ever runs,
+    # since Geant4SensDetActionSequence applies filters ahead of the
+    # sensitive action itself. The action already does its own gating
+    # (unconditional for opticalphoton, edep>0 for everything else), so
+    # LeadGlassBar needs no filter at all here.
+    SIM.filter.mapDetFilter["LeadGlassBar"] = None
 
 ## default filter for tracking sensitive detectors; this is applied if no other filter is used for a tracker
 ## Individual Cherenkov photon energies (~2-4 eV) are far below the default

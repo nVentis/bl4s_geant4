@@ -10,6 +10,23 @@
        directions along the z axis from the reference point specified
        in `position`)
     -->
+  <!-- LeadGlassBar side walls: default is bare glass (plain
+       DD4hep_BoxSegment, no <surface> child); this matches the real
+       polished-but-uncoated glass slab and relies purely on Geant4's
+       default Fresnel/TIR physics from LeadGlass/Air RINDEX alone, which
+       measurably reproduces the same SiPM yield as the reflective variant
+       below (verified: ~13.6k-19.7k hits/event either way, same seed).
+       The only difference is runtime: ~111s/event bare vs ~12-15s/event
+       reflective (~8-9x), since the explicit REFLECTIVITY on
+       LeadGlassBar_SideMirror (defined in ../GlassBar.xml, currently
+       unused) appears to let Geant4 skip the full per-bounce Fresnel
+       angle calculation for a cheap probabilistic reflect/absorb draw.
+
+       To re-enable the reflective (fast, ~99.5%-mirror) variant for
+       comparison, swap in:
+         type="DD4hep_BoxSegmentReflective" ... > with an added
+         <surface name="LeadGlassBar_SideMirror"/> child (see git history
+         or README.md for the exact block). -->
   <detectors>
     <detector id="1" name="LeadGlassBar" type="DD4hep_BoxSegment"
               readout="LeadGlassBarHits" vis="BlueVis"
@@ -23,7 +40,7 @@
     <detector id="2" name="SiPM" type="DD4hep_BoxSegment"
               readout="SiPMHits" vis="GreenVis"
               sensitive="true">
-      <material name="Silicon"/>
+      <material name="SiPM_Silicon"/>
       <sensitive type="tracker"/>
       <box      x="4.75*cm" y="4.75*cm" z="0.1*cm"/>
       <position x="0"       y="0"       z="50.1*cm"/>
